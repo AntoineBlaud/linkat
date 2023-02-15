@@ -1,6 +1,6 @@
 # Minkat
 
-Linkat, short for 'Linux Kernel Allocation Tracer,' is a small tool that allows you to trace the allocation that a program makes in kernel memory on a Linux system and visualize it in a user-friendly interface. It utilizes ftrace, so you need to have it installed to use this tool. Linkat sets ftrace parameters and parses the logs to provide you with detailed information about kernel memory allocation.
+Linkat, short for 'Linux Kernel Allocation Tracer,' is a small tool that allows you to trace the allocation that yout poc makes in kernel memory on a Linux system and visualize it in a user-friendly interface. It utilizes ftrace, so you need to have it installed to use this tool. Linkat sets ftrace parameters and parses the logs to provide you with detailed information about kernel memory allocation.
 
 ![alt text](https://i.ibb.co/RjvXFyK/Capture-d-cran-2023-02-15-202702.png)
 
@@ -13,8 +13,9 @@ To install Linkat, follow the steps given below:
 
 Clone the Linkat repository in your host machine using the following command:
 
-
-    git clone https://github.com/AntoineBlaud/linkat.git
+```bash
+git clone https://github.com/AntoineBlaud/linkat.git
+```
 
 ### 2. Build the Docker image
 
@@ -46,13 +47,13 @@ linkat-run
 ```
 ### 2. Set markers
 
-Call the function 'marker' at least once, which is located inside the 'helper.h' file.
-###  3. Run your program
+Inside your poc call the function 'marker' at least once, which is located inside the 'helper.h' file.
+###  3. Run your poc
 
-Quickly run your program after launching linkat-run. The longer you wait, the more time Linkat will take to parse the log.
+Quickly run your poc after launching linkat-run. The longer you wait, the more time Linkat will take to parse the log.
 ### 4. Parse the log and fetch data
 
-Once your program has finished running, press enter to allow Linkat to parse the log and fetch data. If Linkat asks for it, enter the process from the ones proposed.
+Once your poc has finished running, press enter to allow Linkat to parse the log and fetch data. If Linkat asks for it, enter the process from the ones proposed.
 ### 5. Copy trace.json to your host machine
 
 Copy the trace.json file to your host machine.
@@ -70,8 +71,9 @@ Finally, open your browser and go to localhost:3000 to enjoy using Linkat.
 
 ## Further information
 
-Rendering a large memory trace could take a few seconds (approximately 1 second per 3000 entries) when the program makes a large amount of allocations, so please be patient.
+Rendering a large memory trace could take a few seconds (approximately 1 second per 3000 entries) when the poc makes a large amount of allocations, so please be patient.
+Also, this program could easily be extended to trace any pre-compiled program, but I don't see the need for it.
 
 ## Conclusion
 
-Linkat is a useful tool for tracing kernel memory allocation on Linux systems. By following the installation and usage steps given above, you can easily use Linkat to trace allocation made by your program in kernel memory.
+Linkat is a useful tool for tracing kernel memory allocation on Linux systems. By following the installation and usage steps given above, you can easily use Linkat to trace allocation made by your poc in kernel memory.
