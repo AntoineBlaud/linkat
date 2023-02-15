@@ -1,4 +1,4 @@
-# Minkat
+# Linkat
 
 Linkat, short for 'Linux Kernel Allocation Tracer,' is a small tool that allows you to trace the allocation that yout poc makes in kernel memory on a Linux system and visualize it in a user-friendly interface. It utilizes ftrace, so you need to have it installed to use this tool. Linkat sets ftrace parameters and parses the logs to provide you with detailed information about kernel memory allocation.
 
