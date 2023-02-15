@@ -67,7 +67,7 @@ After copying the trace.json file to your host machine, run the Docker container
 
 ### 7. Enjoy
 
-Finally, open your browser and go to localhost:3000 to enjoy using Linkat.
+Finally, open your browser and go to localhost:3000 to enjoy using Linkat. Move the range bar to display the progress/evolution
 
 ## Further information
 
