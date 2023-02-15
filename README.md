@@ -44,17 +44,19 @@ Inside your target machine, launch linkat-run using the following command:
 ```bash
 linkat-run
 ```
+### 2. Set markers
 
-###  2. Run your program
+Call the function 'marker' at least once, which is located inside the 'helper.h' file.
+###  3. Run your program
 
 Quickly run your program after launching linkat-run. The longer you wait, the more time Linkat will take to parse the log.
-### 3. Parse the log and fetch data
+### 4. Parse the log and fetch data
 
 Once your program has finished running, press enter to allow Linkat to parse the log and fetch data. If Linkat asks for it, enter the process from the ones proposed.
-### 4. Copy trace.json to your host machine
+### 5. Copy trace.json to your host machine
 
 Copy the trace.json file to your host machine.
-### 5. Run the Docker container
+### 6. Run the Docker container
 
 After copying the trace.json file to your host machine, run the Docker container using the following command:
 
@@ -62,7 +64,7 @@ After copying the trace.json file to your host machine, run the Docker container
 ./docker-run.sh <your-trace.json path>
 ```
 
-### 6. Enjoy
+### 7. Enjoy
 
 Finally, open your browser and go to localhost:3000 to enjoy using Linkat.
 
