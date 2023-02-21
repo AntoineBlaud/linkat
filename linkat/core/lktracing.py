@@ -157,6 +157,8 @@ def find_true_pid(markers):
 
 
 def prepare_events(events):
+    # drop values where that are none 
+    events = list(filter(lambda x: x["event"] is not None, events))
     ptr_values = sorted(list(set(event["ptr"] for event in events)))
 
     for i, event in enumerate(events):
