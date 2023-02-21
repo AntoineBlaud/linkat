@@ -17,6 +17,7 @@ def setup_ftrace():
     
     subprocess.run("apt-get install -y trace-cmd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run("trace-cmd clear", shell=True)
+    subprocess.run("echo > /sys/kernel/debug/tracing/tracer", shell=True)
     
     filename = "/sys/kernel/debug/tracing/set_event"
     clear(filename)
