@@ -15,9 +15,7 @@ def setup_ftrace():
     
     # check trace-cmd is installed
     
-    subprocess.run("apt-get install -y trace-cmd", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run("trace-cmd clear", shell=True)
-    subprocess.run("echo > /sys/kernel/debug/tracing/tracer", shell=True)
+    subprocess.run("echo > /sys/kernel/debug/tracing/trace", shell=True)
     
     filename = "/sys/kernel/debug/tracing/set_event"
     clear(filename)
@@ -32,6 +30,12 @@ def setup_ftrace():
     clear("/sys/kernel/debug/tracing/set_ftrace_filter")
     echo("do_sys_open", "/sys/kernel/debug/tracing/set_ftrace_filter")
     echo("vfs_unlink", "/sys/kernel/debug/tracing/set_ftrace_filter")
+    
+
+    echo("0","/sys/kernel/debug/tracing/events/kprobes/kprobe_page/enable")
+    clear("/sys/kernel/debug/tracing/kprobe_events")
+    echo("'r:kprobe_page __get_free_pages  $retval'", "/sys/kernel/debug/tracing/kprobe_events")
+    echo("1","/sys/kernel/debug/tracing/events/kprobes/kprobe_page/enable")
     
     clear("/sys/kernel/debug/tracing/current_tracer")
     echo("function", "/sys/kernel/debug/tracing/current_tracer")
@@ -58,17 +62,21 @@ def build_alloc_parser():
     num = Word(nums)
     event = Word(alphanums + "_")
     call_site = Suppress("call_site=") + Word(alphanums + "_/+..")
+    kprobev = Group(Word(alphanums + "()<>-_/+..")*3)
     ptr = Suppress("ptr=") + Word(alphanums)
     bytes_req = Suppress("bytes_req=") + Word(alphanums)
     bytes_alloc = Suppress("bytes_alloc=") + Word(alphanums)
     name = Suppress("name=") + restOfLine
     page = Suppress("page=") + Word(alphanums)
+    arg1 = Suppress("arg1=") + Word(alphanums)
+    order = Suppress("order=") + Word(nums)
+    pfn = Suppress("pfn=") + Word(alphanums)
 
     info_group = Group(pid + Suppress(Group("[" + num + "]" + Word("." + alphanums))) + timestamp + Suppress(":"))
     alloc_parser = info_group + event + Suppress(":")
-    alloc_parser += Optional(page) + Optional(call_site)
+    alloc_parser += Optional(page) + Optional(pfn) + Optional(order) +  Optional(call_site)
     alloc_parser += Optional(ptr) + Optional(bytes_req) + Optional(bytes_alloc)
-    alloc_parser += Optional(name) + Suppress(rest_of_line)
+    alloc_parser += Optional(name) +  Optional(kprobev) + Optional(arg1) + Suppress(rest_of_line)
     return alloc_parser
 
 def build_vfs_parser(function):
@@ -78,7 +86,7 @@ def build_vfs_parser(function):
     return Group(pid + Suppress(Group("[" + num + "]" + Word("." + alphanums))) + timestamp + Suppress(":")) + function + Suppress(restOfLine)
 
 
-def find_allocs(events):
+def find_events(events):
     parser = build_alloc_parser()
     with tqdm(total=len(events)) as pbar:
         for event in events:
@@ -96,16 +104,42 @@ def find_allocs(events):
                     infos[1] = parsed[3]
                     infos[2] = parsed[4]
                     infos[3] = parsed[5]
-                event_data = {
-                    "event": event_type, 
-                    "pid": pid, 
-                    "timestamp": float(timestamp), 
-                    "call_site": "page_alloc" if event_type == "mm_page_alloc" else infos[0], 
-                    "ptr": infos[0] if event_type == "mm_page_alloc" else infos[1], 
-                    "bytes_req": PAGESIZE if event_type == "mm_page_alloc" else infos[2], 
-                    "bytes_alloc": PAGESIZE if event_type == "mm_page_alloc" else infos[3],
-                    "size": PAGESIZE if event_type == "mm_page_alloc" else infos[3]
-                }
+                    
+                if event_type == "mm_page_alloc":
+                    size = PAGESIZE * (2 ** int(infos[2]))
+                    event_data = {
+                        "event": event_type,
+                        "pid": pid,
+                        "timestamp": float(timestamp),
+                        "call_site": "page_alloc",
+                        "ptr": None,
+                        "bytes_req": size,
+                        "bytes_alloc": size,
+                        "size": size
+                    }
+                    
+                elif event_type == "kprobe_page":
+                    event_data = {
+                        "event": event_type,
+                        "pid": pid,
+                        "timestamp": float(timestamp),
+                        "call_site": "page_alloc",
+                        "ptr": infos[1][2:],
+                        "bytes_req": None,
+                        "bytes_alloc": None,
+                        "size": None
+                    }
+                else :
+                    event_data = {
+                        "event": event_type, 
+                        "pid": pid, 
+                        "timestamp": float(timestamp), 
+                        "call_site": infos[0], 
+                        "ptr": infos[1], 
+                        "bytes_req": infos[2], 
+                        "bytes_alloc": infos[3],
+                        "size": infos[3]
+                    }
                 event["event"] = event_data
                 event["processed"] = True
             except ParseException:
@@ -157,9 +191,8 @@ def find_true_pid(markers):
 
 
 def prepare_events(events):
-    # drop values where that are none 
-    events = list(filter(lambda x: x["event"] is not None, events))
-    ptr_values = sorted(list(set(event["ptr"] for event in events)))
+    events = list(filter(lambda x: x["ptr"] is not None, events))
+    ptr_values = list(sorted(list(set(event["ptr"] for event in events)), key=lambda x: int(x, 16)))
 
     for i, event in enumerate(events):
         event["timestamp_index"] = i
@@ -212,7 +245,7 @@ def prepare_events(events):
         spacing = int(next_addr, 16) - int(addr, 16)
         element_size = int(events[0]["size"])
         spacing -= element_size
-        if spacing <= 0:
+        if spacing == 0:
             continue
         new_ptr = hex(int(addr, 16) + element_size)[2:]
         spacing_events = {
@@ -227,14 +260,26 @@ def prepare_events(events):
         fep[new_ptr] = [spacing_events]
 
     return list(OrderedDict(sorted(fep.items(), key=lambda x: x[0])).values())
-    
+
+
+def merge_page_events(events):
+    save_event = None
+    for event in events:
+        if event["event"] == "mm_page_alloc":
+            save_event = event
+        if event["event"] == "kprobe_page" and save_event != None:
+            save_event["ptr"] = event["ptr"] 
+            save_event = None
+    return [event for event in events if event["event"] != "kprobe_page"]
+            
+            
     
 def parse_ftrace(trace_history):
     events = trace_history.split("\n")
     events = [{"id": x, "processed" : False, "raw": events[x], "event": {}} for x in range(len(events))]
     print("We need to accomplish 2 steps:")
     print("1. Parse the allocs/frees")
-    find_allocs(events)
+    find_events(events)
     print("2. Parse the vfs_unlink")
     unlink_parser = build_vfs_parser("vfs_unlink")
     markers= parse_vfs(events, unlink_parser)
@@ -252,6 +297,9 @@ def parse_ftrace(trace_history):
     # filter events
     events = list(filter(lambda x: x["pid"] == true_pid, events))
     calls_site = list(set(event["call_site"] for event in events))
+    
+    #merge page events
+    events = merge_page_events(events)
     
     formatted_events = prepare_events(events)
     return {"events": formatted_events, "raw": events,  "markers_start" :  markers_start, "markers_end": markers_end, "calls_site": calls_site, "total_events_count": len(events)}
