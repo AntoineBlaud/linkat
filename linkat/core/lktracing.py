@@ -285,6 +285,7 @@ def parse_ftrace(trace_history):
     markers= parse_vfs(events, unlink_parser)
     markers = reduce(lambda x, y: x + y, markers)
     true_pid = find_true_pid(markers)
+    events = list(filter(lambda x: x["event"]["pid"] == true_pid, events))
     # group marker per 40 
     markers = [markers[i:i + 40] for i in range(0, len(markers), 40)]
     # take only the first marker of each group
@@ -295,7 +296,6 @@ def parse_ftrace(trace_history):
     # remove null events
     events = list(filter(lambda x: x != {}, events))
     # filter events
-    events = list(filter(lambda x: x["pid"] == true_pid, events))
     calls_site = list(set(event["call_site"] for event in events))
     
     #merge page events
