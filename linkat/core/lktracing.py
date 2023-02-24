@@ -283,8 +283,12 @@ def parse_ftrace(trace_history):
     print("2. Parse the vfs_unlink")
     unlink_parser = build_vfs_parser("vfs_unlink")
     markers= parse_vfs(events, unlink_parser)
-    markers = reduce(lambda x, y: x + y, markers)
-    true_pid = find_true_pid(markers)
+    try:
+        markers = reduce(lambda x, y: x + y, markers)
+        true_pid = find_true_pid(markers)
+    except ValueError:
+        raise "Markers was not found. Enable to identify the process."
+    events = list(filter(lambda x: "pid" in x["event"], events))
     events = list(filter(lambda x: x["event"]["pid"] == true_pid, events))
     # group marker per 40 
     markers = [markers[i:i + 40] for i in range(0, len(markers), 40)]
